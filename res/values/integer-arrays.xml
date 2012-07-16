@@ -1,0 +1,22 @@
+<resources>
+
+    <integer-array name="colors">
+        <item>0xffc682</item>
+        <item>0xffd196</item>
+        <item>0xffddaf</item>
+        <item>0xffeac8</item>
+        <item>0xfff7e2</item>
+        <item>0xffefdb</item>
+        <item>0xffefdb</item>
+        <item>0xffc1b0</item>
+        <item>0xffa798</item>
+        <item>0xeff2dd</item>
+        <item>0xd9eab6</item>
+        <item>0xc4e29d</item>
+        <item>0x97d267</item>
+        <item>0xbbe5f9</item>
+        <item>0xbbe5f9</item>
+        <item>0xf2fafe</item>
+    </integer-array>
+
+</resources>
