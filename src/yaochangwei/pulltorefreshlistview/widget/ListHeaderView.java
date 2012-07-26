@@ -1,16 +1,10 @@
 package yaochangwei.pulltorefreshlistview.widget;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import yaochangwei.pulltorefreshlistview.R;
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnHeaderViewChangedListener;
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
+import android.graphics.Color;
 import android.os.CountDownTimer;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
@@ -18,17 +12,10 @@ import android.view.animation.Interpolator;
 
 public class ListHeaderView extends ViewGroup {
 
-	/**
-	 * Implement a flash color header.
-	 * 
-	 * @author Yaochangwei(yaochangwei@gmail.com)
-	 * 
-	 */
-
 	/** Set the height of the list header */
 	private int mHeight;
 
-	/** Interpolator */
+	/** Interpolator*/
 	private static final Interpolator sInterpolator = new Interpolator() {
 
 		public float getInterpolation(float t) {
@@ -39,7 +26,7 @@ public class ListHeaderView extends ViewGroup {
 	};
 
 	/** Max Duration */
-	private static final int MAX_DURATION = 450;
+	private static final int MAX_DURATION = 350;
 
 	private int mDistance;
 	private int mInitHeight;
@@ -48,34 +35,26 @@ public class ListHeaderView extends ViewGroup {
 	// The height when user release can trigger update.
 	private int mUpdateHeight;
 
-	// The height the view is updating...
-	private int mFlashHeight;
-
 	private RefreshableListView mListView;
 
 	private static final int INVALID_STATE = -1;
 
-	/** The state should be when close execute */
+	/** The state shoudl be when close execute */
 	private int mNextState = INVALID_STATE;
 
-	private static final int ANIMATE_INTERVAL = 100;
-	private static final int INDICATE_INTERVAL = 300;
-	private final ArrayList<Integer> mColors;
-	private static final int PIECE_COUNT = 16;
-
 	OnHeaderViewChangedListener mOnHeaderViewChangedListener;
+
+	/** The header upate status control the header view */
+	int mUpdatingStatus = UPDATING_IDLE;
+
+	private static final int UPDATING_IDLE = 0;
+	private static final int UPDATING_READY = 1;
+	private static final int UPDATING_ON_GOING = 2;
+	private static final int UPDATING_FINISH = 3;
 
 	public ListHeaderView(Context context, RefreshableListView list) {
 		super(context);
 		mListView = list;
-
-		int[] colors = context.getResources().getIntArray(R.array.colors);
-		mColors = new ArrayList<Integer>();
-		for (int color : colors) {
-			mColors.add(color | 0xff000000);
-		}
-
-		mUpdateHeight = (int) (context.getResources().getDisplayMetrics().density * 55 + 0.5f);
 	}
 
 	@Override
@@ -92,85 +71,6 @@ public class ListHeaderView extends ViewGroup {
 				measuredHeight);
 	}
 
-	private Timer mTimer;
-	private Timer mIndicateTimer;
-	private boolean mNeedsAnimated;
-
-	private void toggleIndicator() {
-		if (mIndicateTimer != null) {
-			mIndicateTimer.cancel();
-			mIndicateTimer = null;
-		} else {
-			mNeedsAnimated = true;
-			mIndicateTimer = new Timer();
-			mIndicateTimer.scheduleAtFixedRate(new TimerTask() {
-				public void run() {
-					cycleColor();
-				}
-			}, 0, INDICATE_INTERVAL);
-		}
-	}
-
-	private void shuffleColor() {
-		Collections.shuffle(mColors);
-		postInvalidate();
-	}
-
-	private void cycleColor() {
-		int color = mColors.remove(mColors.size() - 1);
-		mColors.add(0, color);
-		postInvalidate();
-	}
-
-	public void toggle() {
-
-		if (mIndicateTimer != null) {
-			mIndicateTimer.cancel();
-			mIndicateTimer = null;
-		}
-
-		if (mTimer == null) {
-			mTimer = new Timer();
-			mNeedsAnimated = true;
-			mTimer.scheduleAtFixedRate(new TimerTask() {
-				public void run() {
-					shuffleColor();
-				}
-			}, 0, ANIMATE_INTERVAL);
-		} else {
-			mNeedsAnimated = false;
-			mTimer.cancel();
-			mTimer = null;
-		}
-	}
-
-	@Override
-	protected void dispatchDraw(Canvas canvas) {
-		drawBackground(canvas);
-		if (!mNeedsAnimated) {
-			super.dispatchDraw(canvas);
-		}
-	}
-
-	private final void drawBackground(Canvas canvas) {
-		int height = getMeasuredHeight();
-		int pieceWidth = getMeasuredWidth() / PIECE_COUNT;
-		mFlashHeight = pieceWidth;
-		final Paint paint = new Paint();
-		final ArrayList<Integer> colors = mColors;
-		for (int i = 0; i < PIECE_COUNT; i++) {
-			paint.setColor(colors.get(i));// FIXME the size is 15 and the index
-											// is also 15 04-11 12:47:01.476:
-											// E/AndroidRuntime(7919):
-											// java.lang.IndexOutOfBoundsException:
-											// Invalid index 15, size is 15
-											// it should be multi-thread bug.
-
-			canvas.drawRect(i * pieceWidth, 0, (i + 1) * pieceWidth, height,
-					paint);
-		}
-	}
-
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		int width = MeasureSpec.getSize(widthMeasureSpec);
@@ -182,19 +82,22 @@ public class ListHeaderView extends ViewGroup {
 		final View childView = getChildView();
 		if (childView != null) {
 			childView.measure(widthMeasureSpec, heightMeasureSpec);
+			mUpdateHeight = childView.getMeasuredHeight();
 		}
 	}
 
 	public void startUpdate(Runnable runnable) {
+		mUpdatingStatus = UPDATING_READY;
 		mUpdateRunnable = runnable;
 		mInitHeight = mHeight;
-		mDistance = mInitHeight - mFlashHeight;
+		mDistance = mInitHeight - mUpdateHeight;
 		if (mDistance < 0) {
 			mDistance = mInitHeight;
 		}
 		// getChildView().setVisibility(View.INVISIBLE);
 		int duration = (int) (mDistance * 3);
 		duration = duration > MAX_DURATION ? MAX_DURATION : duration;
+		Log.d(VIEW_LOG_TAG, "duration:" + duration);
 		final CloseTimer timer = new CloseTimer(duration);
 		timer.startTimer();
 	}
@@ -202,6 +105,10 @@ public class ListHeaderView extends ViewGroup {
 	private Runnable mUpdateRunnable;
 
 	public void close(int nextState) {
+		mUpdatingStatus = UPDATING_FINISH;
+		if (mOnHeaderViewChangedListener != null) {
+			mOnHeaderViewChangedListener.onViewUpdateFinish(this);
+		}
 		mDistance = mInitHeight = mHeight;
 		int duration = (int) (mDistance * 4);
 		duration = duration > MAX_DURATION ? MAX_DURATION : duration;
@@ -217,14 +124,12 @@ public class ListHeaderView extends ViewGroup {
 		}
 
 		final int distance = mHeight - mUpdateHeight;
-		return distance >= 0;
+		boolean needUpdate = distance >= 0;
+		return needUpdate;
 	}
 
 	public void moveToUpdateHeight() {
-		if (mFlashHeight == 0) {
-			mFlashHeight = this.getMeasuredWidth() / PIECE_COUNT;
-		}
-		setHeaderHeight(mFlashHeight);
+		setHeaderHeight(mUpdateHeight);
 		mImediateUpdate = true;
 	}
 
@@ -289,30 +194,43 @@ public class ListHeaderView extends ViewGroup {
 		super.addView(child);
 	}
 
+	private boolean mCanUpdate;
+
 	public void setHeaderHeight(int height) {
-		// final int lastHeight = mHeight;
-		// final int updateHeight = mUpdateHeight;
+		if (mHeight == height && height == 0) {
+			// duplicate 0
+			return;
+		}
+
+		final int updateHeight = mUpdateHeight;
 		mHeight = height;
 
-		// if (height == 0) {
-		// getChildView().setVisibility(View.VISIBLE);
-		// }else{
-		// getChildView().setVisibility(View.GONE);
-		// }
-		// final View childView = getChildView();
+		if (mUpdatingStatus != UPDATING_IDLE) {
+			if (mUpdatingStatus == UPDATING_READY
+					&& mOnHeaderViewChangedListener != null) {
+				mOnHeaderViewChangedListener.onViewUpdating(this);
+				mUpdatingStatus = UPDATING_ON_GOING;
+			}
+		} else {
+			if ((height < updateHeight) && mCanUpdate) {
+				if (mOnHeaderViewChangedListener != null) {
+					mOnHeaderViewChangedListener.onViewChanged(this, false);
+				}
+				mCanUpdate = false;
+			} else if ((height >= updateHeight) && !mCanUpdate) {
+				if (mOnHeaderViewChangedListener != null) {
+					mOnHeaderViewChangedListener.onViewChanged(this, true);
+				}
+				mCanUpdate = true;
+			}
+		}
 
-		// if ((height < updateHeight) && (lastHeight > updateHeight)) {
-		// // if (mOnHeaderViewChangedListener != null) {
-		// // mOnHeaderViewChangedListener.onViewChanged(this, false);
-		// // }
-		// toggleIndicator();
-		// } else if ((height > updateHeight) && (lastHeight < updateHeight)) {
-		// // if (mOnHeaderViewChangedListener != null) {
-		// // mOnHeaderViewChangedListener.onViewChanged(this, true);
-		// // }
-		// toggleIndicator();
-		// }
 		requestLayout();
+
+		if (height == 0) {
+			mUpdatingStatus = UPDATING_IDLE;
+			mCanUpdate = false;
+		}
 	}
 
 }

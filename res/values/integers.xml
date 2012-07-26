@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="revealAnimTime">150</integer>
+    <integer name="hideAnimTime">150</integer>
+    <integer name="full_name_max_length">20</integer>
+    <integer name="rotateAnimTime">175</integer>
+    <integer name="bounceAnimTime">120</integer>
+</resources>

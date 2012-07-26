@@ -9,12 +9,7 @@ import android.view.View;
 import android.widget.ListView;
 
 public class RefreshableListView extends ListView {
-	/**
-	 * Refreshable List View, multi-touch event handled rightly.
-	 * 
-	 * @author Yaochangwei(yaochangwei@gmail.com)
-	 * 
-	 */
+
 	private static final int STATE_NORMAL = 0;
 	private static final int STATE_READY = 1;
 	private static final int STATE_PULL = 2;
@@ -23,20 +18,14 @@ public class RefreshableListView extends ListView {
 
 	private static final int MIN_UPDATE_TIME = 500;
 
-	private ListHeaderView mListHeaderView;
+	protected ListHeaderView mListHeaderView;
 
 	private int mActivePointerId;
 	private float mLastY;
 
 	private int mState;
 
-	private OnRefreshListener mOnRefreshListener;
-
-	public interface OnRefreshListener {
-		public void doInBackground();
-
-		public void updateUI();
-	}
+	private OnUpdateTask mOnUpdateTask;
 
 	public RefreshableListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -48,23 +37,38 @@ public class RefreshableListView extends ListView {
 		initialize();
 	}
 
-	private void initialize() {
-		final Context context = getContext();
-		mListHeaderView = new ListHeaderView(context, this);
-		addHeaderView(mListHeaderView, null, false);
-		mState = STATE_NORMAL;
+	/***
+	 * Set the Header Content View.
+	 * 
+	 * @param id
+	 *            The view resource.
+	 */
+	public void setContentView(int id) {
+		final View view = LayoutInflater.from(getContext()).inflate(id,
+				mListHeaderView, false);
+		mListHeaderView.addView(view);
 	}
 
-	public void setHeaderResource(int res) {
-		final View v = LayoutInflater.from(getContext()).inflate(res, this,
-				false);
+	public void setContentView(View v) {
 		mListHeaderView.addView(v);
 	}
 
-	public void setOnRefreshListener(OnRefreshListener listener) {
-		mOnRefreshListener = listener;
+	public ListHeaderView getListHeaderView() {
+		return mListHeaderView;
 	}
 
+	/**
+	 * Setup the update task.
+	 * 
+	 * @param task
+	 */
+	public void setOnUpdateTask(OnUpdateTask task) {
+		mOnUpdateTask = task;
+	}
+
+	/**
+	 * Update immediately.
+	 */
 	public void startUpdateImmediate() {
 		if (mState == STATE_UPDATING) {
 			return;
@@ -74,14 +78,33 @@ public class RefreshableListView extends ListView {
 		update();
 	}
 
+	/**
+	 * Set the Header View change listener.
+	 * 
+	 * @param listener
+	 */
+	public void setOnHeaderViewChangedListener(
+			OnHeaderViewChangedListener listener) {
+		mListHeaderView.mOnHeaderViewChangedListener = listener;
+	}
+
+	private void initialize() {
+		final Context context = getContext();
+		mListHeaderView = new ListHeaderView(context, this);
+		addHeaderView(mListHeaderView, null, false);
+		mState = STATE_NORMAL;
+	}
+
 	private void update() {
 		if (mListHeaderView.isUpdateNeeded()) {
-			mListHeaderView.toggle();
+			if (mOnUpdateTask != null) {
+				mOnUpdateTask.onUpdateStart();
+			}
 			mListHeaderView.startUpdate(new Runnable() {
 				public void run() {
 					final long b = System.currentTimeMillis();
-					if (mOnRefreshListener != null) {
-						mOnRefreshListener.doInBackground();
+					if (mOnUpdateTask != null) {
+						mOnUpdateTask.updateBackground();
 					}
 					final long delta = MIN_UPDATE_TIME
 							- (System.currentTimeMillis() - b);
@@ -94,18 +117,12 @@ public class RefreshableListView extends ListView {
 					}
 					post(new Runnable() {
 						public void run() {
-							mListHeaderView.toggle();
 							mListHeaderView.close(STATE_NORMAL);
-						}
-					});
-
-					postDelayed(new Runnable() {
-						public void run() {
-							if (mOnRefreshListener != null) {
-								mOnRefreshListener.updateUI();
+							if (mOnUpdateTask != null) {
+								mOnUpdateTask.updateUI();
 							}
 						}
-					}, 50);
+					});
 				}
 			});
 			mState = STATE_UPDATING;
@@ -142,7 +159,8 @@ public class RefreshableListView extends ListView {
 				final float y = MotionEventCompat.getY(ev, activePointerIndex);
 				final int deltaY = (int) (y - mLastY);
 				mLastY = y;
-				if (deltaY < 0) {
+				if (deltaY <= 0) { // FIXE A BUG WILL OCCUR ON MILESTONE 2 WITH
+									// MIUI
 					mState = STATE_NORMAL;
 				} else {
 					mState = STATE_PULL;
@@ -196,7 +214,7 @@ public class RefreshableListView extends ListView {
 		}
 	}
 
-	public void setState(int state) {
+	void setState(int state) {
 		mState = state;
 	}
 
@@ -220,12 +238,58 @@ public class RefreshableListView extends ListView {
 		return needs;
 	}
 
-	public void setOnHeaderViewChanged(OnHeaderViewChangedListener listener) {
-		mListHeaderView.mOnHeaderViewChangedListener = listener;
+	/** When use custom List header view */
+	public static interface OnHeaderViewChangedListener {
+		/**
+		 * When user pull the list view, we can change the header status here.
+		 * for example: the arrow rotate down or up.
+		 * 
+		 * @param v
+		 *            : the list view header
+		 * @param canUpdate
+		 *            : if the list view can update.
+		 */
+		void onViewChanged(View v, boolean canUpdate);
+
+		/**
+		 * Change the header status when we really do the update task. for
+		 * example: display the progressbar.
+		 * 
+		 * @param v
+		 *            the list view header
+		 */
+		void onViewUpdating(View v);
+
+		/**
+		 * Will called when the update task finished. for example: hide the
+		 * progressbar and show the arrow.
+		 * 
+		 * @param v
+		 *            the list view header.
+		 */
+		void onViewUpdateFinish(View v);
 	}
 
-	public static interface OnHeaderViewChangedListener {
-		void onViewChanged(View v, boolean canUpdate);
+	/** The callback when the updata task begin, doing. or finish. */
+	public static interface OnUpdateTask {
+
+		/**
+		 * will called before the update task begin. Will Run in the UI thread.
+		 */
+		public void onUpdateStart();
+
+		/**
+		 * Will called doing the background task. Will Run in the background
+		 * thread.
+		 */
+		public void updateBackground();
+
+		/**
+		 * Will called when doing the background task. Will Run in the UI
+		 * thread.
+		 */
+		public void updateUI();
+
 	}
 
 }

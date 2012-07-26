@@ -3,7 +3,7 @@ package yaochangwei.pulltorefreshlistview;
 import java.util.ArrayList;
 
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView;
-import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnRefreshListener;
+import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnUpdateTask;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -30,25 +30,26 @@ public class TestActivity extends Activity {
 		final RefreshableListView list = (RefreshableListView) findViewById(R.id.refreshablelistview);
 		mListView = list;
 		list.setAdapter(aa);
-		
-		/*We set the onrefreshListener.*/
-		list.setOnRefreshListener(new OnRefreshListener() {
+
+		/* We set the onrefreshListener. */
+		list.setOnUpdateTask(new OnUpdateTask() {
 			
-			/*do long time operations here.*/
-			public void doInBackground() {
+			public void updateBackground() {
 				listItemDatas.add(0, "list item" + listItemDatas.size());
-				
-				//simulate long times operation.
+				// simulate long times operation.
 				try {
 					Thread.sleep(1500);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
-			
-			/*update the UI.*/
+
 			public void updateUI() {
 				aa.notifyDataSetChanged();
+			}
+
+			public void onUpdateStart() {
+
 			}
 
 		});
@@ -62,7 +63,7 @@ public class TestActivity extends Activity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		/*You can start update immediately.*/
+		/* You can start update immediately. */
 		mListView.startUpdateImmediate();
 		return true;
 	}

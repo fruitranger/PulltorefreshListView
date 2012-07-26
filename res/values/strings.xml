@@ -3,5 +3,7 @@
     <string name="app_name">PulltorefreshListView</string>
     <string name="menu_refresh">Refresh Immediately!</string>
     <string name="title_activity_test">RefreshableListView Test Activity!</string>
-
-</resources>
+    <string name="refresh_pull_down">Pull down to refresh…</string>
+    <string name="refresh_release">Release to refresh…</string>
+    <string name="loading">Loading…</string>
+</resources>
