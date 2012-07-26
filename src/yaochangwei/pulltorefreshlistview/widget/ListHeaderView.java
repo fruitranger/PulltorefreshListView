@@ -2,7 +2,6 @@ package yaochangwei.pulltorefreshlistview.widget;
 
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnHeaderViewChangedListener;
 import android.content.Context;
-import android.graphics.Color;
 import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
@@ -15,7 +14,7 @@ public class ListHeaderView extends ViewGroup {
 	/** Set the height of the list header */
 	private int mHeight;
 
-	/** Interpolator*/
+	/** Interpolator */
 	private static final Interpolator sInterpolator = new Interpolator() {
 
 		public float getInterpolation(float t) {
@@ -52,9 +51,16 @@ public class ListHeaderView extends ViewGroup {
 	private static final int UPDATING_ON_GOING = 2;
 	private static final int UPDATING_FINISH = 3;
 
+	/** Max pull height. */
+	private int mMaxPullHeight;
+
+	private static final int MAX_PULL_HEIGHT_DP = 200;
+
 	public ListHeaderView(Context context, RefreshableListView list) {
 		super(context);
 		mListView = list;
+		mMaxPullHeight = (int) (context.getResources().getDisplayMetrics().density
+				* MAX_PULL_HEIGHT_DP + 0.5f);
 	}
 
 	@Override
@@ -198,7 +204,11 @@ public class ListHeaderView extends ViewGroup {
 
 	public void setHeaderHeight(int height) {
 		if (mHeight == height && height == 0) {
-			// duplicate 0
+			// ignore duplicate 0 height setting.
+			return;
+		}
+
+		if (height > mMaxPullHeight) {
 			return;
 		}
 
