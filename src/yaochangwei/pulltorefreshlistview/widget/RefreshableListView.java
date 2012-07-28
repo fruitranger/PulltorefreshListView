@@ -1,5 +1,10 @@
 package yaochangwei.pulltorefreshlistview.widget;
 
+/**
+ * @author Yaochangwei (yaochangwei@gmail.com)
+ * 
+ *  Refreshable ListView base class. 
+ */
 import android.content.Context;
 import android.support.v4.view.MotionEventCompat;
 import android.util.AttributeSet;

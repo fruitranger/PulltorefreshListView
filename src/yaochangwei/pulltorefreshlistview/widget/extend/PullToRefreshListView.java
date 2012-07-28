@@ -1,5 +1,12 @@
 package yaochangwei.pulltorefreshlistview.widget.extend;
 
+/**
+ * 
+ * @author Yao Changwei(yaochangwei@gmail.com)
+ * 
+ *        Pull To  Refresh List View Demo, Including the arrow and text change.
+ */
+
 import yaochangwei.pulltorefreshlistview.R;
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView;
 import android.content.Context;
