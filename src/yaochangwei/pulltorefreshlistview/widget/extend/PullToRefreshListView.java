@@ -60,6 +60,8 @@ public class PullToRefreshListView extends RefreshableListView {
 				ImageView img = (ImageView) v.findViewById(R.id.refresh_icon);
 				ProgressBar pb = (ProgressBar) v
 						.findViewById(R.id.refresh_loading);
+
+				tv.setText(R.string.refresh_pull_down);
 				pb.setVisibility(View.INVISIBLE);
 				tv.setVisibility(View.VISIBLE);
 				img.setVisibility(View.VISIBLE);
