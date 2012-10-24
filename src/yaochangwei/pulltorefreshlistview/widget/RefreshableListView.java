@@ -11,6 +11,7 @@ import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.widget.ListView;
 
 public class RefreshableListView extends ListView {
@@ -31,6 +32,8 @@ public class RefreshableListView extends ListView {
 	private int mState;
 
 	private OnUpdateTask mOnUpdateTask;
+
+	private int mTouchSlop;
 
 	public RefreshableListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -98,6 +101,8 @@ public class RefreshableListView extends ListView {
 		mListHeaderView = new ListHeaderView(context, this);
 		addHeaderView(mListHeaderView, null, false);
 		mState = STATE_NORMAL;
+		final ViewConfiguration configuration = ViewConfiguration.get(context);
+		mTouchSlop = configuration.getScaledTouchSlop();
 	}
 
 	private void update() {
@@ -164,8 +169,7 @@ public class RefreshableListView extends ListView {
 				final float y = MotionEventCompat.getY(ev, activePointerIndex);
 				final int deltaY = (int) (y - mLastY);
 				mLastY = y;
-				if (deltaY <= 0) { // FIXE A BUG WILL OCCUR ON MILESTONE 2 WITH
-									// MIUI
+				if (deltaY <= 0 || Math.abs(y) < mTouchSlop) {
 					mState = STATE_NORMAL;
 				} else {
 					mState = STATE_PULL;
