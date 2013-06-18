@@ -34,7 +34,7 @@ public class ListHeaderView extends ViewGroup {
 	// The height when user release can trigger update.
 	private int mUpdateHeight;
 
-	private RefreshableListView mListView;
+	protected RefreshableListView mListView;
 
 	private static final int INVALID_STATE = -1;
 
@@ -110,7 +110,7 @@ public class ListHeaderView extends ViewGroup {
 
 	private Runnable mUpdateRunnable;
 
-	public void close(int nextState) {
+	public int close(int nextState) {
 		mUpdatingStatus = UPDATING_FINISH;
 		if (mOnHeaderViewChangedListener != null) {
 			mOnHeaderViewChangedListener.onViewUpdateFinish(this);
@@ -121,6 +121,7 @@ public class ListHeaderView extends ViewGroup {
 		mNextState = nextState;
 		final CloseTimer timer = new CloseTimer(duration);
 		timer.startTimer();
+		return duration;
 	}
 
 	public boolean isUpdateNeeded() {
@@ -182,7 +183,7 @@ public class ListHeaderView extends ViewGroup {
 
 	}
 
-	private View getChildView() {
+	protected View getChildView() {
 		final int childCount = getChildCount();
 		if (childCount != 1) {
 			return null;
@@ -234,7 +235,6 @@ public class ListHeaderView extends ViewGroup {
 				mCanUpdate = true;
 			}
 		}
-
 		requestLayout();
 
 		if (height == 0) {

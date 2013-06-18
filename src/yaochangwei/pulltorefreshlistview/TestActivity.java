@@ -3,6 +3,7 @@ package yaochangwei.pulltorefreshlistview;
 import java.util.ArrayList;
 
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView;
+import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnPullUpUpdateTask;
 import yaochangwei.pulltorefreshlistview.widget.RefreshableListView.OnUpdateTask;
 import android.app.Activity;
 import android.os.Bundle;
@@ -21,7 +22,7 @@ public class TestActivity extends Activity {
 
 		final ArrayList<String> listItemDatas = new ArrayList<String>();
 		for (int i = 0; i < 10; i++) {
-			listItemDatas.add(0, "list item " + i);
+			listItemDatas.add("list item " + i);
 		}
 
 		final ArrayAdapter<String> aa = new ArrayAdapter<String>(this,
@@ -33,9 +34,8 @@ public class TestActivity extends Activity {
 
 		/* We set the onrefreshListener. */
 		list.setOnUpdateTask(new OnUpdateTask() {
-			
+
 			public void updateBackground() {
-				listItemDatas.add(0, "list item" + listItemDatas.size());
 				// simulate long times operation.
 				try {
 					Thread.sleep(1500);
@@ -45,11 +45,36 @@ public class TestActivity extends Activity {
 			}
 
 			public void updateUI() {
-				aa.notifyDataSetChanged();
+				// aa.notifyDataSetChanged();
 			}
 
 			public void onUpdateStart() {
 
+			}
+
+		});
+
+		list.setOnPullUpUpdateTask(new OnPullUpUpdateTask() {
+
+			@Override
+			public void onUpdateStart() {
+
+			}
+
+			@Override
+			public void updateBackground() {
+				// simulate long times operation.
+				try {
+					Thread.sleep(1500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+			@Override
+			public void updateUI() {
+				listItemDatas.add("list item" + listItemDatas.size());
+				aa.notifyDataSetChanged();
 			}
 
 		});

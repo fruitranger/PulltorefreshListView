@@ -7,11 +7,13 @@ package yaochangwei.pulltorefreshlistview.widget;
  */
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.ListView;
+import android.widget.Toast;
 
 public class RefreshableListView extends ListView {
 
@@ -21,16 +23,23 @@ public class RefreshableListView extends ListView {
 	private static final int STATE_UPDATING = 3;
 	private static final int INVALID_POINTER_ID = -1;
 
+	private static final int UP_STATE_READY = 4;
+	private static final int UP_STATE_PULL = 5;
+
 	private static final int MIN_UPDATE_TIME = 500;
 
 	protected ListHeaderView mListHeaderView;
+	protected ListBottomView mListBottomView;
 
 	private int mActivePointerId;
 	private float mLastY;
 
 	private int mState;
+	
+	private boolean mPullUpRefreshEnabled = false;
 
 	private OnUpdateTask mOnUpdateTask;
+	private OnPullUpUpdateTask mOnPullUpUpdateTask;
 
 	private int mTouchSlop;
 
@@ -56,6 +65,23 @@ public class RefreshableListView extends ListView {
 		mListHeaderView.addView(view);
 	}
 
+	/**
+	 * Set the bootom content view. and open this feature.
+	 * 
+	 * @param id
+	 */
+	public void setBottomContentView(int id) {
+		mPullUpRefreshEnabled = true;
+		final View view = LayoutInflater.from(getContext()).inflate(id,
+				mListBottomView, false);
+		mListBottomView.addView(view);
+		addFooterView(mListBottomView, null, false);
+	}
+
+	public void setBottomContentView(View v) {
+		mListBottomView.addView(v);
+	}
+
 	public void setContentView(View v) {
 		mListHeaderView.addView(v);
 	}
@@ -73,6 +99,10 @@ public class RefreshableListView extends ListView {
 		mOnUpdateTask = task;
 	}
 
+	public void setOnPullUpUpdateTask(OnPullUpUpdateTask task) {
+		mOnPullUpUpdateTask = task;
+	}
+
 	/**
 	 * Update immediately.
 	 */
@@ -85,6 +115,17 @@ public class RefreshableListView extends ListView {
 		update();
 	}
 
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if (keyCode == KeyEvent.KEYCODE_MENU) {
+			Toast.makeText(getContext(), "menu", Toast.LENGTH_SHORT).show();
+			this.mListBottomView.setBottomHeight(40);
+
+			return true;
+		}
+		return super.onKeyDown(keyCode, event);
+	}
+
 	/**
 	 * Set the Header View change listener.
 	 * 
@@ -95,13 +136,71 @@ public class RefreshableListView extends ListView {
 		mListHeaderView.mOnHeaderViewChangedListener = listener;
 	}
 
+	public void setOnBottomViewChangedListener(
+			OnBottomViewChangedListener listener) {
+		mListBottomView.mOnHeaderViewChangedListener = listener;
+	}
+
 	private void initialize() {
 		final Context context = getContext();
 		mListHeaderView = new ListHeaderView(context, this);
 		addHeaderView(mListHeaderView, null, false);
+		mListBottomView = new ListBottomView(getContext(), this);
 		mState = STATE_NORMAL;
 		final ViewConfiguration configuration = ViewConfiguration.get(context);
 		mTouchSlop = configuration.getScaledTouchSlop();
+	}
+
+	private void pullUpUpdate() {
+		if (mListBottomView.isUpdateNeeded()) {
+			if (mOnPullUpUpdateTask != null) {
+				mOnPullUpUpdateTask.onUpdateStart();
+			}
+
+			final int preAdapterCount = this.getAdapter().getCount();
+
+			mListBottomView.startUpdate(new Runnable() {
+				public void run() {
+					final long b = System.currentTimeMillis();
+					if (mOnPullUpUpdateTask != null) {
+						mOnPullUpUpdateTask.updateBackground();
+					}
+					final long delta = MIN_UPDATE_TIME
+							- (System.currentTimeMillis() - b);
+					if (delta > 0) {
+						try {
+							Thread.sleep(delta);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+
+					post(new Runnable() {
+						public void run() {
+							int deltay = mListBottomView.close(STATE_NORMAL);
+							postDelayed(new Runnable() {
+								public void run() {
+
+									if (getAdapter().getCount() != preAdapterCount) {
+										throw new IllegalStateException(
+												"You should change the adapter data in updateUI");
+									}
+
+									if (mOnPullUpUpdateTask != null) {
+										mOnPullUpUpdateTask.updateUI();
+									}
+								}
+							}, deltay);
+
+						}
+					});
+
+				}
+			});
+			mState = STATE_UPDATING;
+		} else {
+			mListBottomView.close(STATE_NORMAL);
+		}
 	}
 
 	private void update() {
@@ -151,6 +250,7 @@ public class RefreshableListView extends ListView {
 			mActivePointerId = MotionEventCompat.getPointerId(ev, 0);
 			mLastY = ev.getY();
 			isFirstViewTop();
+			isLastViewBottom();
 			break;
 		case MotionEvent.ACTION_MOVE:
 			if (mActivePointerId == INVALID_POINTER_ID) {
@@ -159,6 +259,7 @@ public class RefreshableListView extends ListView {
 
 			if (mState == STATE_NORMAL) {
 				isFirstViewTop();
+				isLastViewBottom();
 			}
 
 			if (mState == STATE_READY) {
@@ -175,6 +276,20 @@ public class RefreshableListView extends ListView {
 					ev.setAction(MotionEvent.ACTION_CANCEL);
 					super.dispatchTouchEvent(ev);
 				}
+			} else if (mState == UP_STATE_READY) {
+				final int activePointerId = mActivePointerId;
+				final int activePointerIndex = MotionEventCompat
+						.findPointerIndex(ev, activePointerId);
+				final float y = MotionEventCompat.getY(ev, activePointerIndex);
+				final int deltaY = (int) (y - mLastY);
+				mLastY = y;
+				if (deltaY >= 0 || Math.abs(y) < mTouchSlop) {
+					mState = STATE_NORMAL;
+				} else {
+					mState = UP_STATE_PULL;
+					ev.setAction(MotionEvent.ACTION_CANCEL);
+					super.dispatchTouchEvent(ev);
+				}
 			}
 
 			if (mState == STATE_PULL) {
@@ -188,6 +303,16 @@ public class RefreshableListView extends ListView {
 				final int headerHeight = mListHeaderView.getHeight();
 				setHeaderHeight(headerHeight + deltaY * 5 / 9);
 				return true;
+			} else if (mState == UP_STATE_PULL) {
+				final int activePointerId = mActivePointerId;
+				final int activePointerIndex = MotionEventCompat
+						.findPointerIndex(ev, activePointerId);
+				final float y = MotionEventCompat.getY(ev, activePointerIndex);
+				final int deltaY = (int) (y - mLastY);
+				mLastY = y;
+				final int headerHeight = mListBottomView.getHeight();
+				setBottomHeight(headerHeight - deltaY * 5 / 9);
+				return true;
 			}
 
 			break;
@@ -196,6 +321,8 @@ public class RefreshableListView extends ListView {
 			mActivePointerId = INVALID_POINTER_ID;
 			if (mState == STATE_PULL) {
 				update();
+			} else if (mState == UP_STATE_PULL) {
+				pullUpUpdate();
 			}
 			break;
 		case MotionEventCompat.ACTION_POINTER_DOWN:
@@ -228,6 +355,25 @@ public class RefreshableListView extends ListView {
 
 	private void setHeaderHeight(int height) {
 		mListHeaderView.setHeaderHeight(height);
+	}
+
+	private void setBottomHeight(int height) {
+		mListBottomView.setBottomHeight(height);
+	}
+
+	private boolean isLastViewBottom() {
+		final int count = getChildCount();
+		if (count == 0 || !mPullUpRefreshEnabled) {
+			return false;
+		}
+
+		final int lastVisiblePosition = getLastVisiblePosition();
+		boolean needs = (lastVisiblePosition == (getAdapter().getCount() - getHeaderViewsCount()))
+				&& (getChildAt(getChildCount() - 1).getBottom() == getBottom());
+		if (needs) {
+			mState = UP_STATE_READY;
+		}
+		return needs;
 	}
 
 	private boolean isFirstViewTop() {
@@ -276,6 +422,15 @@ public class RefreshableListView extends ListView {
 		 *            the list view header.
 		 */
 		void onViewUpdateFinish(View v);
+	}
+
+	public static interface OnBottomViewChangedListener extends
+			OnHeaderViewChangedListener {
+
+	}
+
+	public static interface OnPullUpUpdateTask extends OnUpdateTask {
+
 	}
 
 	/** The callback when the updata task begin, doing. or finish. */
