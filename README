@@ -1,4 +1,3 @@
-The RefreshableListView needs android-v4-support.jar library for handle Multi-touch event on low platform.
 The RefreshableListView can run on api level 7
 
 Email me: yaochangwei@gmail.com
