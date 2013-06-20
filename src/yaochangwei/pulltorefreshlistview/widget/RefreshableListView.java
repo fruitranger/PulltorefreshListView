@@ -7,13 +7,11 @@ package yaochangwei.pulltorefreshlistview.widget;
  */
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.ListView;
-import android.widget.Toast;
 
 public class RefreshableListView extends ListView {
 
@@ -35,7 +33,7 @@ public class RefreshableListView extends ListView {
 	private float mLastY;
 
 	private int mState;
-	
+
 	private boolean mPullUpRefreshEnabled = false;
 
 	private OnUpdateTask mOnUpdateTask;
@@ -358,7 +356,7 @@ public class RefreshableListView extends ListView {
 
 		final int lastVisiblePosition = getLastVisiblePosition();
 		boolean needs = (lastVisiblePosition == (getAdapter().getCount() - getHeaderViewsCount()))
-				&& (getChildAt(getChildCount() - 1).getBottom() == getBottom());
+				&& (getChildAt(getChildCount() - 1).getBottom() == (getBottom() - getTop()));
 		if (needs) {
 			mState = UP_STATE_READY;
 		}
