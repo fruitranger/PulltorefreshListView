@@ -115,17 +115,6 @@ public class RefreshableListView extends ListView {
 		update();
 	}
 
-	@Override
-	public boolean onKeyDown(int keyCode, KeyEvent event) {
-		if (keyCode == KeyEvent.KEYCODE_MENU) {
-			Toast.makeText(getContext(), "menu", Toast.LENGTH_SHORT).show();
-			this.mListBottomView.setBottomHeight(40);
-
-			return true;
-		}
-		return super.onKeyDown(keyCode, event);
-	}
-
 	/**
 	 * Set the Header View change listener.
 	 * 
